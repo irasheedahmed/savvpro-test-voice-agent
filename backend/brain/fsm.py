@@ -293,6 +293,13 @@ def _handle_confirm(
     text: str,
     state: ConversationState,
 ) -> tuple[str, ConversationState]:
+    if intent == Intent.CANCEL:
+        # User wants to abort/cancel booking at confirmation step
+        state.fsm_state = FSMState.END
+        reply = "No problem, I've cancelled this booking request. Nothing has been scheduled. Have a great day!"
+        state.last_reply = reply
+        return reply, state
+
     if intent == Intent.CONFIRM:
         state.fsm_state = FSMState.END
         # If this was a reschedule, release the old appointment slot first
@@ -334,14 +341,20 @@ def _reschedule_lookup(text: str, state: ConversationState) -> tuple[str, Conver
     if name:
         state.slots["name"] = name
         appt = get_appointment(name)
-        if appt and appt.get("status") == "cancelled":
+        if not appt:
             state.fsm_state = FSMState.END
-            reply = f"I found a record for {name}, but your appointment has already been cancelled. If you'd like to book a new appointment, please give us a call back!"
+            reply = f"I couldn't find any appointment on file for {name}. If you'd like to book a new appointment, please give us a call back!"
+            state.last_reply = reply
+            return reply, state
+
+        if appt.get("status") == "cancelled":
+            state.fsm_state = FSMState.END
+            reply = f"I found a record for {name}, but that appointment has already been cancelled. If you'd like to book a new appointment, please give us a call back!"
             state.last_reply = reply
             return reply, state
         
         state.fsm_state = FSMState.RESCHEDULE_COLLECT_DATE
-        if appt and appt.get("doctor"):
+        if appt.get("doctor"):
             state.slots["doctor"] = appt["doctor"]
         reply = f"I found your booking, {name}. What new date would you like?"
     else:
@@ -355,7 +368,13 @@ def _cancel_lookup(text: str, state: ConversationState) -> tuple[str, Conversati
     if name:
         state.slots["name"] = name
         appt = get_appointment(name)
-        if appt and appt.get("status") == "cancelled":
+        if not appt:
+            state.fsm_state = FSMState.END
+            reply = f"I couldn't find any appointment on file for {name}."
+            state.last_reply = reply
+            return reply, state
+
+        if appt.get("status") == "cancelled":
             state.fsm_state = FSMState.END
             reply = f"Your appointment under the name {name} has already been cancelled."
             state.last_reply = reply

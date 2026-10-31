@@ -151,6 +151,8 @@ class TestGoodbye:
 
 class TestCancelFlow:
     def test_cancel_happy_path(self):
+        from backend.brain.availability import book_slot
+        book_slot(name="John Smith", doctor="Dr. Khan", date_str="2026-11-02", time_str="10:00")
         _, state = initial_state()
         _, state = handle_utterance("cancel my appointment", state)
         assert state.fsm_state == FSMState.CANCEL_LOOKUP
@@ -159,13 +161,31 @@ class TestCancelFlow:
         _, state = handle_utterance("yes", state)
         assert state.fsm_state == FSMState.END
 
+    def test_cancel_not_found(self):
+        _, state = initial_state()
+        _, state = handle_utterance("cancel my appointment", state)
+        assert state.fsm_state == FSMState.CANCEL_LOOKUP
+        reply, state = handle_utterance("Nonexistent Person", state)
+        assert state.fsm_state == FSMState.END
+        assert "couldn't find" in reply.lower()
+
 
 class TestRescheduleFlow:
     def test_reschedule_name_lookup(self):
+        from backend.brain.availability import book_slot
+        book_slot(name="Sara Lee", doctor="Dr. Smith", date_str="2026-11-03", time_str="11:00")
         _, state = initial_state()
         _, state = handle_utterance("I need to reschedule", state)
         assert state.fsm_state == FSMState.RESCHEDULE_LOOKUP
         _, state = handle_utterance("Sara Lee", state)
         assert state.fsm_state == FSMState.RESCHEDULE_COLLECT_DATE
         assert state.slots.get("name") == "Sara Lee"
+
+    def test_reschedule_not_found(self):
+        _, state = initial_state()
+        _, state = handle_utterance("I need to reschedule", state)
+        assert state.fsm_state == FSMState.RESCHEDULE_LOOKUP
+        reply, state = handle_utterance("Ghost Patient", state)
+        assert state.fsm_state == FSMState.END
+        assert "couldn't find" in reply.lower()
 

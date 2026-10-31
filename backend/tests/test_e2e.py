@@ -108,6 +108,8 @@ class TestFullEndToEndScenarios:
 
     def test_e2e_reschedule_flow(self):
         """Caller reschedules existing appointment."""
+        from backend.brain.availability import book_slot
+        book_slot(name="Sara Connor", doctor="Dr. Smith", date_str="2026-11-03", time_str="11:00")
         _, state = initial_state()
 
         # Caller wants to reschedule
@@ -130,6 +132,8 @@ class TestFullEndToEndScenarios:
 
     def test_e2e_cancel_flow(self):
         """Caller cancels appointment."""
+        from backend.brain.availability import book_slot
+        book_slot(name="John Smith", doctor="Dr. Khan", date_str="2026-11-02", time_str="10:00")
         _, state = initial_state()
 
         # Request cancellation
