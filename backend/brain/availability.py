@@ -4,9 +4,41 @@ Generates 4 weeks of Mon–Fri slots from today's date.
 No external dependencies.
 """
 
+import sqlite3
+import os
 from datetime import date, timedelta
+from typing import Optional
+from .slots import is_time_too_soon
 
-# { "YYYY-MM-DD": { "HH:MM": [doctor, ...] } }
+# SQLite Database persistence setup
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "clinic.db")
+
+def _init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS appointments (
+            name_key TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            doctor TEXT NOT NULL,
+            date_str TEXT NOT NULL,
+            time_str TEXT NOT NULL,
+            reason TEXT,
+            status TEXT NOT NULL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS booked_slots (
+            date_str TEXT NOT NULL,
+            time_str TEXT NOT NULL,
+            doctor TEXT NOT NULL,
+            PRIMARY KEY (date_str, time_str, doctor)
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_db()
 # "any" in the doctor list means any/no-preference callers are accepted.
 MOCK_AVAILABILITY: dict[str, dict[str, list[str]]] = {}
 
@@ -36,15 +68,40 @@ def _build() -> dict[str, dict[str, list[str]]]:
 MOCK_AVAILABILITY = _build()
 
 
+def _load_from_db():
+    """Load persisted appointments and booked slots from SQLite."""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT name_key, name, doctor, date_str, time_str, reason, status FROM appointments")
+    for row in cur.fetchall():
+        APPOINTMENTS[row[0]] = {
+            "name": row[1],
+            "doctor": row[2],
+            "date": row[3],
+            "time": row[4],
+            "reason": row[5],
+            "status": row[6],
+        }
+    cur.execute("SELECT date_str, time_str, doctor FROM booked_slots")
+    for row in cur.fetchall():
+        BOOKED_SLOTS.add((row[0], row[1], row[2]))
+    conn.close()
+
 # Active bookings and appointment registry
 # APPOINTMENTS: { name_lower: {"name": str, "doctor": str, "date": str, "time": str, "reason": Optional[str], "status": "booked"|"cancelled"} }
 # BOOKED_SLOTS: set of (date_str, time_str, doctor_canonical)
 APPOINTMENTS: dict[str, dict] = {}
 BOOKED_SLOTS: set[tuple[str, str, str]] = set()
 
+_load_from_db()
+
 
 def is_available(date_str: str, time_str: str, doctor: str) -> bool:
-    """Return True if *date_str* / *time_str* / *doctor* is in the mock grid and not already booked."""
+    """Return True if *date_str* / *time_str* / *doctor* is in the mock grid, not too soon today, and not already booked."""
+    # Never offer or consider a slot available if it is today and < 1 hour ahead
+    if is_time_too_soon(date_str, time_str):
+        return False
+
     slot_doctors = MOCK_AVAILABILITY.get(date_str, {}).get(time_str)
     if slot_doctors is None:
         return False
@@ -64,7 +121,7 @@ def is_available(date_str: str, time_str: str, doctor: str) -> bool:
 
 
 def book_slot(name: str, doctor: str, date_str: str, time_str: str, reason: str = "") -> bool:
-    """Commit a booking into the clinic appointment store."""
+    """Commit a booking into SQLite and in-memory cache."""
     name_clean = name.strip()
     key = name_clean.lower()
     
@@ -89,11 +146,28 @@ def book_slot(name: str, doctor: str, date_str: str, time_str: str, reason: str 
         "reason": reason,
         "status": "booked",
     }
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT OR REPLACE INTO appointments (name_key, name, doctor, date_str, time_str, reason, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (key, name_clean, assigned_doctor, date_str, time_str, reason, "booked"))
+        cur.execute("""
+            INSERT OR REPLACE INTO booked_slots (date_str, time_str, doctor)
+            VALUES (?, ?, ?)
+        """, (date_str, time_str, assigned_doctor))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
     return True
 
 
 def cancel_appointment(name: str) -> Optional[dict]:
-    """Mark an appointment as cancelled and release the booked slot."""
+    """Mark an appointment as cancelled and release the booked slot in DB and memory."""
     key = name.strip().lower()
     appt = APPOINTMENTS.get(key)
     if not appt:
@@ -105,6 +179,21 @@ def cancel_appointment(name: str) -> Optional[dict]:
         BOOKED_SLOTS.remove(slot_tuple)
 
     appt["status"] = "cancelled"
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE appointments SET status = 'cancelled' WHERE name_key = ?
+        """, (key,))
+        cur.execute("""
+            DELETE FROM booked_slots WHERE date_str = ? AND time_str = ? AND doctor = ?
+        """, (appt["date"], appt["time"], appt["doctor"]))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
     return appt
 
 

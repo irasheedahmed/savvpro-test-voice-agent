@@ -11,5 +11,6 @@ dist/
 build/
 backend/models/*.onnx
 !backend/models/*.json
+*.db
 
 
