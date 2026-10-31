@@ -665,6 +665,8 @@ export default function VoiceAgentApp() {
             <span className="text-[11px] text-slate-400 self-center">Try prompt:</span>
             {[
               "I'd like to book an appointment",
+              "I need to reschedule my appointment",
+              "I want to cancel my appointment",
               "Dr. Khan on Monday at 3pm",
               "Actually make it Tuesday instead",
               "Actually I'd prefer Dr. Smith",
