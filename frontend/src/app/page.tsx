@@ -30,6 +30,17 @@ export default function VoiceAgentApp() {
   const [isCalling, setIsCalling] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const ttsEnabledRef = useRef(ttsEnabled);
+
+  useEffect(() => {
+    ttsEnabledRef.current = ttsEnabled;
+    // If user mutes while agent is currently speaking, immediately stop audio
+    if (!ttsEnabled && currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      setIsAgentSpeaking(false);
+    }
+  }, [ttsEnabled]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [currentState, setCurrentState] = useState<FSMState>("GREETING");
   const [slots, setSlots] = useState<SlotData>({});
@@ -59,10 +70,11 @@ export default function VoiceAgentApp() {
   }, []);
 
   const playBase64Wav = useCallback((base64Wav: string) => {
-    if (!ttsEnabled) return;
+    if (!ttsEnabledRef.current) return;
     try {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
       }
       const audio = new Audio(`data:audio/wav;base64,${base64Wav}`);
       currentAudioRef.current = audio;
@@ -83,7 +95,7 @@ export default function VoiceAgentApp() {
       console.error("Audio playback error:", e);
       setIsAgentSpeaking(false);
     }
-  }, [ttsEnabled]);
+  }, []);
 
   const handleServerMessage = useCallback((data: AgentServerResponse) => {
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
