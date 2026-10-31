@@ -378,6 +378,13 @@ export default function VoiceAgentApp() {
 
           {/* Controls & Connection Indicator */}
           <div className="flex items-center space-x-3">
+            <a
+              href="/admin"
+              title="Admin Dashboard"
+              className="text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 rounded-lg hover:bg-slate-800/60"
+            >
+              Admin
+            </a>
             <button
               onClick={() => setTtsEnabled(!ttsEnabled)}
               title={ttsEnabled ? "Mute Voice (TTS)" : "Enable Voice (TTS)"}

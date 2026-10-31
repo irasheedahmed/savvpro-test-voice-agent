@@ -37,7 +37,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from brain.fsm import ConversationState, handle_utterance, initial_state
@@ -63,6 +63,54 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Admin API — hardcoded credentials for assessment purposes
+# ---------------------------------------------------------------------------
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+ADMIN_TOKEN = "admin-token-savvpro"
+
+
+def _require_admin(authorization: Optional[str]):
+    """Raise 401 if the bearer token doesn't match."""
+    if authorization != f"Bearer {ADMIN_TOKEN}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.post("/api/admin/login")
+def admin_login(data: dict):
+    """Validate admin credentials and return a static bearer token."""
+    if (
+        data.get("username") == ADMIN_USERNAME
+        and data.get("password") == ADMIN_PASSWORD
+    ):
+        return {"success": True, "token": ADMIN_TOKEN}
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+@app.get("/api/admin/appointments")
+def admin_get_appointments(authorization: Optional[str] = Header(None)):
+    """Return all appointments (booked + cancelled) for the admin dashboard."""
+    _require_admin(authorization)
+    from brain.availability import APPOINTMENTS
+
+    return {"appointments": list(APPOINTMENTS.values())}
+
+
+@app.post("/api/admin/appointments/{name_key}/cancel")
+def admin_cancel_appointment(
+    name_key: str, authorization: Optional[str] = Header(None)
+):
+    """Allow admin to cancel a specific appointment by patient name key."""
+    _require_admin(authorization)
+    from brain.availability import cancel_appointment
+
+    result = cancel_appointment(name_key)
+    if not result:
+        raise HTTPException(status_code=404, detail="Appointment not found or already cancelled")
+    return {"success": True, "appointment": result}
 
 
 @app.post("/api/stt")
