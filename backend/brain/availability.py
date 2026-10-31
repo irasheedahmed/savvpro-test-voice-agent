@@ -44,7 +44,7 @@ MOCK_AVAILABILITY: dict[str, dict[str, list[str]]] = {}
 
 
 def _build() -> dict[str, dict[str, list[str]]]:
-    """Generate availability grid for the next 28 weekdays from today."""
+    """Generate availability grid for the next 90 days from today."""
     today = date.today()
     slot_templates = [
         ("09:00", ["any", "Dr. Khan", "Dr. Smith"]),
@@ -55,13 +55,11 @@ def _build() -> dict[str, dict[str, list[str]]]:
         ("16:00", ["Dr. Patel", "Dr. Smith"]),
     ]
     avail: dict[str, dict[str, list[str]]] = {}
-    for offset in range(0, 57):          # include today and upcoming days
+    for offset in range(0, 90):          # 90 days ahead covers upcoming months (e.g. Dec, Jan)
         d = today + timedelta(days=offset)
         avail[d.strftime("%Y-%m-%d")] = {
             t: list(docs) for t, docs in slot_templates
         }
-        if len(avail) >= 28:
-            break
     return avail
 
 
