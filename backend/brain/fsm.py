@@ -119,6 +119,31 @@ def handle_utterance(text: str, conv_state: ConversationState) -> tuple[str, Con
         state.last_reply = reply
         return reply, state
 
+    # ── 2b. Global Intent Switch (Reschedule / Cancel) ─────────────────────
+    if intent == Intent.RESCHEDULE and state.fsm_state not in (
+        FSMState.RESCHEDULE_LOOKUP,
+        FSMState.RESCHEDULE_COLLECT_DATE,
+        FSMState.RESCHEDULE_COLLECT_TIME,
+    ):
+        state.action = "reschedule"
+        state.slots = {}
+        state.fsm_state = FSMState.RESCHEDULE_LOOKUP
+        reply = r.reschedule_ask_name()
+        state.last_reply = reply
+        return reply, state
+
+    if intent == Intent.CANCEL and state.fsm_state not in (
+        FSMState.CANCEL_LOOKUP,
+        FSMState.CANCEL_CONFIRM,
+        FSMState.CONFIRM,  # In CONFIRM, _handle_confirm handles aborting
+    ):
+        state.action = "cancel"
+        state.slots = {}
+        state.fsm_state = FSMState.CANCEL_LOOKUP
+        reply = r.cancel_ask_name()
+        state.last_reply = reply
+        return reply, state
+
     # ── 3. Repeat ──────────────────────────────────────────────────────────
     if intent == Intent.REPEAT:
         return state.last_reply, state     # resend last agent reply verbatim

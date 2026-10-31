@@ -87,6 +87,20 @@ def _load_from_db():
         BOOKED_SLOTS.add((row[0], row[1], row[2]))
     conn.close()
 
+def reset_db():
+    """Clear database and in-memory caches (used for tests or clean reset)."""
+    APPOINTMENTS.clear()
+    BOOKED_SLOTS.clear()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM appointments")
+        cur.execute("DELETE FROM booked_slots")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
 # Active bookings and appointment registry
 # APPOINTMENTS: { name_lower: {"name": str, "doctor": str, "date": str, "time": str, "reason": Optional[str], "status": "booked"|"cancelled"} }
 # BOOKED_SLOTS: set of (date_str, time_str, doctor_canonical)

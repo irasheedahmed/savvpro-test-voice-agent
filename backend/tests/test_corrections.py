@@ -151,7 +151,7 @@ class TestGoodbye:
 
 class TestCancelFlow:
     def test_cancel_happy_path(self):
-        from backend.brain.availability import book_slot
+        from brain.availability import book_slot
         book_slot(name="John Smith", doctor="Dr. Khan", date_str="2026-11-02", time_str="10:00")
         _, state = initial_state()
         _, state = handle_utterance("cancel my appointment", state)
@@ -172,7 +172,7 @@ class TestCancelFlow:
 
 class TestRescheduleFlow:
     def test_reschedule_name_lookup(self):
-        from backend.brain.availability import book_slot
+        from brain.availability import book_slot
         book_slot(name="Sara Lee", doctor="Dr. Smith", date_str="2026-11-03", time_str="11:00")
         _, state = initial_state()
         _, state = handle_utterance("I need to reschedule", state)

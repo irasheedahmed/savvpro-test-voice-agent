@@ -91,7 +91,8 @@ _TIME_WORDS = {"morning", "afternoon", "evening", "night", "noon", "midday", "lu
 _WEEKDAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today", "tomorrow", "yesterday"}
 _MONTHS = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"}
 _DOCTOR_TITLES = {"dr", "doctor", "doc"}
-_NON_NAME_WORDS = _TIME_WORDS | _WEEKDAYS | _MONTHS | _DOCTOR_TITLES
+_ACTION_WORDS = {"reschedule", "schedule", "rebook", "book", "cancel", "cancellation", "appointment", "booking"}
+_NON_NAME_WORDS = _TIME_WORDS | _WEEKDAYS | _MONTHS | _DOCTOR_TITLES | _ACTION_WORDS
 _NAME_FILLER  = {"the", "a", "an", "is", "its", "it", "my", "me", "yes",
                  "no", "ok", "okay", "sure"} | _FILLER_WORDS | _NON_NAME_WORDS
 
